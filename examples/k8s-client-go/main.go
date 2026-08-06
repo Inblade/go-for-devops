@@ -24,6 +24,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -237,7 +238,7 @@ func listPods(ctx context.Context, client kubernetes.Interface,
 	return all, nil
 }
 
-func printPods(w *os.File, pods []corev1.Pod, showNamespace bool) {
+func printPods(w io.Writer, pods []corev1.Pod, showNamespace bool) {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	defer tw.Flush()
 

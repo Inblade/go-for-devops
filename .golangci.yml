@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    errcheck:
+      # Writing to stdout or an in-memory buffer effectively cannot fail, and
+      # checking it turns every print into three lines. Real writers (files,
+      # sockets) are not in this list and still have to be checked.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*text/tabwriter.Writer).Flush

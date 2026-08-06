@@ -1,5 +1,9 @@
 # Go for DevOps
 
+[![ci](https://github.com/Inblade/go-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/Inblade/go-for-devops/actions/workflows/ci.yml)
+[![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 Small, idiomatic Go programs covering the patterns that come up repeatedly when
 building infrastructure tooling: CLIs, Kubernetes clients, Prometheus exporters,
 and bounded concurrent workers.
@@ -119,6 +123,44 @@ which cancellation is merely advisory and `Wait()` blocks until the slowest job
 finishes anyway.
 
 Verified clean under `-race`.
+
+## Tests
+
+Every example has a test suite, because an example that claims a behaviour and
+does not demonstrate it is just a comment.
+
+```bash
+go test -race ./...
+```
+
+What the tests actually pin down:
+
+- **Worker pool** — that fail-fast really does cancel its siblings on the first
+  error (the batch stops early instead of running all 50 jobs), that
+  collect-all aggregates every error and `errors.Is` still reaches through the
+  join, and that a deadline cuts the batch short rather than being honoured
+  only after the last job finishes. Concurrency bounding is asserted from the
+  outside: four jobs through one worker cannot beat four sequential minimum
+  durations. All of it runs under `-race`.
+- **Exporter** — a fake backend drives `testutil.CollectAndCompare` against
+  exact expected exposition text. A failed scrape must emit `queue_up 0` *and*
+  no queue series at all: a stale value is worse than a gap, because an alert
+  believes it. A hanging backend must not hang the scrape.
+- **Kubernetes client** — `client-go`'s fake clientset covers namespace and
+  label filtering, and a reactor serves three pages so the continue-token loop
+  is proven to follow pagination rather than returning page one. Every typed
+  error path is checked for the message it produces, since "forbidden" without
+  "check RBAC" costs someone ten minutes.
+- **CLI** — the command tree is executed end to end with a buffer: persistent
+  flags reaching subcommands, validation running before the command body,
+  `NoArgs` rejecting positionals, and dry-run describing the plan instead of
+  performing it.
+
+Writing the CLI tests turned up a wrong claim in this repo's own comments:
+`SilenceUsage` suppresses usage output for *every* error, including flag
+parsing and unknown commands — not just errors returned from `RunE`. The
+example now sets a `FlagErrorFunc` so a mistyped flag still gets its usage
+text, and the comment says what actually happens.
 
 ## The notes
 

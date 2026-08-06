@@ -73,8 +73,13 @@ func newRootCmd() *cobra.Command {
 			"errors returned rather than fatally logged, and context honoured " +
 			"throughout.",
 		// Without these, Cobra prints the full usage text after any RunE error,
-		// which buries the real message. Usage should appear for *usage* errors
-		// only; Cobra still prints it for flag parsing failures.
+		// which buries the real message under a screen of flags.
+		//
+		// Note that SilenceUsage suppresses usage for *every* error, including
+		// flag-parsing failures and unknown commands — it is not limited to
+		// errors returned from RunE. That is usually not what you want: a
+		// mistyped flag is a usage error and the caller deserves the usage
+		// text. SetFlagErrorFunc below restores it for that case.
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,6 +90,16 @@ func newRootCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	// A flag the caller got wrong is a usage error, so print usage for it even
+	// though SilenceUsage is set. This hook fires for parsing failures only
+	// (unknown flag, bad value); "required flag not set" is validated later
+	// and still reports without usage, which is fine — that message already
+	// names the flag.
+	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		cmd.Println(cmd.UsageString())
+		return err
+	})
 
 	root.PersistentFlags().StringVar(&opts.env, "env", "dev",
 		"target environment (dev|staging|prod)")
